@@ -1,0 +1,8 @@
+# Local development: `mvn spring-boot:run -Dspring-boot.run.profiles=dev` with docker compose's Postgres.
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
+
+logging:
+  level:
+    com.invigilatorassist: DEBUG

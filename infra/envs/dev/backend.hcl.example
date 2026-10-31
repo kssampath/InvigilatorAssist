@@ -1,0 +1,5 @@
+# Copy to backend.hcl (git-ignored) with the values printed by infra/bootstrap.
+resource_group_name  = "rg-invig-shared"
+storage_account_name = "stinvigtfstateXXXXX"
+container_name       = "tfstate"
+use_azuread_auth     = true
