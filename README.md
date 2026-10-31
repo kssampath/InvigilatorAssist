@@ -12,31 +12,9 @@ duties safely. It replaces the original PHP/MySQL prototype, which is kept uncha
 | Cloud | Azure Container Apps, Static Web Apps, Key Vault, Container Registry, Log Analytics |
 | IaC | Terraform (`infra/`) |
 
-```mermaid
-flowchart LR
-    subgraph Users
-        A["🏫 Exam cell admin"]
-        F["👩‍🏫 Faculty"]
-        S["🎓 Students"]
-    end
+![InvigilatorAssist architecture on Azure](docs/architecture.png)
 
-    subgraph Azure["☁️ Azure (Central India)"]
-        W["React web app<br/>Static Web Apps"]
-        API["Spring Boot API<br/>Container Apps"]
-        DB[("PostgreSQL<br/>Flexible Server")]
-        KV["🔐 Key Vault"]
-        LOG["📊 Log Analytics"]
-    end
-
-    ACR["📦 Container Registry"]
-
-    A & F & S --> W
-    W -- "HTTPS + JWT" --> API
-    API -- "private VNet" --> DB
-    API -. "managed identity" .-> KV
-    API -.-> LOG
-    ACR -- "image pull" --> API
-```
+<sub>Regenerate with `python docs/diagrams/architecture.py` (needs `pip install diagrams` and Graphviz).</sub>
 
 ## What the new version does
 
