@@ -12,10 +12,30 @@ duties safely. It replaces the original PHP/MySQL prototype, which is kept uncha
 | Cloud | Azure Container Apps, Static Web Apps, Key Vault, Container Registry, Log Analytics |
 | IaC | Terraform (`infra/`) |
 
-```
-React (Static Web Apps) ──HTTPS──► Spring Boot API (Container Apps) ──private VNet──► PostgreSQL Flexible Server
-                                     │ image from shared ACR, secrets from Key Vault (managed identity)
-                                     └ logs → Log Analytics
+```mermaid
+flowchart LR
+    subgraph Users
+        A["🏫 Exam cell admin"]
+        F["👩‍🏫 Faculty"]
+        S["🎓 Students"]
+    end
+
+    subgraph Azure["☁️ Azure (Central India)"]
+        W["React web app<br/>Static Web Apps"]
+        API["Spring Boot API<br/>Container Apps"]
+        DB[("PostgreSQL<br/>Flexible Server")]
+        KV["🔐 Key Vault"]
+        LOG["📊 Log Analytics"]
+    end
+
+    ACR["📦 Container Registry"]
+
+    A & F & S --> W
+    W -- "HTTPS + JWT" --> API
+    API -- "private VNet" --> DB
+    API -. "managed identity" .-> KV
+    API -.-> LOG
+    ACR -- "image pull" --> API
 ```
 
 ## What the new version does
@@ -137,6 +157,17 @@ Credentials:
 | `azure-tenant-id` | Secret text | tenant ID |
 | `azure-subscription` | Secret text | subscription ID |
 | `tf-backend-account` | Secret text | `state_storage_account_name` from bootstrap |
+
+```mermaid
+flowchart LR
+    G["Push to GitHub"] --> T["Test<br/>backend · frontend · Terraform"]
+    T --> B["Build image<br/>in ACR"]
+    B --> D["Deploy dev<br/>Terraform + web"]
+    D --> SD["Smoke test"]
+    SD --> AP{"Manual<br/>approval"}
+    AP -- "approve" --> P["Deploy prod"]
+    P --> SP["Smoke test"]
+```
 
 Create a Multibranch Pipeline on this repository. On `main`, the pipeline runs these steps:
 
