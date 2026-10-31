@@ -1,0 +1,13 @@
+code,building,floor,capacity,accessible
+A001,Block A,0,40,true
+A002,Block A,0,36,true
+A003,Block A,0,48,true
+A004,Block A,0,30,true
+A101,Block A,1,30,false
+A102,Block A,1,60,false
+A103,Block A,1,30,false
+A104,Block A,1,40,false
+B201,Block B,2,60,false
+B202,Block B,2,30,false
+B203,Block B,2,60,false
+B204,Block B,2,36,false

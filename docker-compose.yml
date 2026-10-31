@@ -1,0 +1,37 @@
+# Local development stack.
+#   docker compose up -d db          → just PostgreSQL (run the API from your IDE with the dev profile)
+#   docker compose --profile full up --build
+#                                    → PostgreSQL + API on http://localhost:8080 (then `npm run dev` in frontend/)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: invigilator
+      POSTGRES_USER: invigilator
+      POSTGRES_PASSWORD: invigilator
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U invigilator -d invigilator"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:postgresql://db:5432/invigilator
+      DB_USERNAME: invigilator
+      DB_PASSWORD: invigilator
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    ports:
+      - "8080:8080"
+    profiles: ["full"]
+
+volumes:
+  pgdata:

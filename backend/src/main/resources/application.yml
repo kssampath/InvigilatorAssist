@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: invigilator-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/invigilator}
+    username: ${DB_USERNAME:invigilator}
+    password: ${DB_PASSWORD:invigilator}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate          # Flyway owns the schema
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  mvc:
+    problemdetails:
+      enabled: true
+
+app:
+  time-zone: ${APP_TIME_ZONE:Asia/Kolkata}
+  jwt:
+    secret: ${JWT_SECRET:}        # required; >= 32 chars. From Key Vault in Azure.
+    ttl: ${JWT_TTL:PT8H}
+    issuer: ${JWT_ISSUER:invigilatorassist}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  allocation:
+    students-per-invigilator: ${STUDENTS_PER_INVIGILATOR:30}
+  dev:
+    admin-password: ${DEV_ADMIN_PASSWORD:admin12345}
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

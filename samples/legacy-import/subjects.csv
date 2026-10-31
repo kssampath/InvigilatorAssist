@@ -1,0 +1,22 @@
+code,name,semester,department_code,instructor_employee_no,elective
+MA1307,EM3,3,,,false
+CS1331,DS LAB,3,,,false
+CS1332,OOPJ LAB,3,,,false
+CS1301,COA,3,,,false
+CS1302,STLD,3,,,false
+CS1303,DS,3,,,false
+CS1304,OOPJ,3,,,false
+HS1301,VEG,3,,,false
+CS1501,DAA,5,,,false
+CS1502,SE,5,,,false
+CS1504,DCOM,5,,,false
+CS1505,ACD,5,,,false
+CS1530,DAA LAB,5,,,false
+CS1535,ACD LAB,5,,,false
+CS1532,SE LAB,5,,,false
+CS1551,LINUX SYSTEM AND SHELL PROGRAMMING,5,,,true
+CS1553,DIGITAL IMAGE PROCESSING,5,,,true
+CC1551,WEB TECHNOLOGIES,5,,,true
+CC1552,EMBEDDED SYSTEMS,5,,,true
+IT1551,GRAPH THEORY,5,,,true
+IT1552,PYTHON PROGRAMMING,5,,,true

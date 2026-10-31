@@ -1,0 +1,31 @@
+employee_no,full_name,email,department_code,designation,max_duties
+E1001,Anita Rao,anita.e1001@demo.edu,CSE,Professor,3
+E1002,Saket Reddy,saket.e1002@demo.edu,ECE,Associate Professor,4
+E1003,Vineeta Iyer,vineeta.e1003@demo.edu,ME,Professor,3
+E1004,Rahul Menon,rahul.e1004@demo.edu,CSE,Professor,3
+E1005,Priya Sharma,priya.e1005@demo.edu,ECE,Associate Professor,4
+E1006,Kiran Rao,kiran.e1006@demo.edu,ME,Assistant Professor,6
+E1007,Meera Gupta,meera.e1007@demo.edu,CSE,Professor,3
+E1008,Arjun Gupta,arjun.e1008@demo.edu,ECE,Professor,3
+E1009,Sneha Reddy,sneha.e1009@demo.edu,ME,Assistant Professor,6
+E1010,Vikram Iyer,vikram.e1010@demo.edu,CSE,Professor,3
+E1011,Deepa Menon,deepa.e1011@demo.edu,ECE,Professor,3
+E1012,Rohit Patil,rohit.e1012@demo.edu,ME,Professor,3
+E1013,Kavya Nair,kavya.e1013@demo.edu,CSE,Associate Professor,4
+E1014,Nikhil Rao,nikhil.e1014@demo.edu,ECE,Assistant Professor,6
+E1015,Pooja Patil,pooja.e1015@demo.edu,ME,Assistant Professor,6
+E1016,Suresh Nair,suresh.e1016@demo.edu,CSE,Assistant Professor,6
+E1017,Lakshmi Gupta,lakshmi.e1017@demo.edu,ECE,Professor,3
+E1018,Manoj Iyer,manoj.e1018@demo.edu,ME,Assistant Professor,6
+E1019,Divya Rao,divya.e1019@demo.edu,CSE,Associate Professor,4
+E1020,Ajay Rao,ajay.e1020@demo.edu,ECE,Assistant Professor,6
+E1021,Neha Sharma,neha.e1021@demo.edu,ME,Assistant Professor,6
+E1022,Ravi Iyer,ravi.e1022@demo.edu,CSE,Assistant Professor,6
+E1023,Swati Menon,swati.e1023@demo.edu,ECE,Associate Professor,4
+E1024,Gaurav Kulkarni,gaurav.e1024@demo.edu,ME,Associate Professor,4
+E1025,Isha Gupta,isha.e1025@demo.edu,CSE,Associate Professor,4
+E1026,Harish Kulkarni,harish.e1026@demo.edu,ECE,Associate Professor,4
+E1027,Asha Iyer,asha.e1027@demo.edu,ME,Associate Professor,4
+E1028,Pranav Iyer,pranav.e1028@demo.edu,CSE,Professor,3
+E1029,Ritu Gupta,ritu.e1029@demo.edu,ECE,Professor,3
+E1030,Sanjay Menon,sanjay.e1030@demo.edu,ME,Associate Professor,4

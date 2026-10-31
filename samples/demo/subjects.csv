@@ -1,0 +1,22 @@
+code,name,semester,department_code,instructor_employee_no,elective
+CSE301,Data Structures (CSE),3,CSE,E1010,false
+CSE302,Digital Logic (CSE),3,CSE,E1013,false
+CSE303,Discrete Maths (CSE),3,CSE,E1016,false
+CSE501,Algorithms (CSE),5,CSE,E1016,false
+CSE502,Software Engineering (CSE),5,CSE,E1019,false
+CSE503,Networks (CSE),5,CSE,E1022,false
+ECE301,Data Structures (ECE),3,ECE,E1011,false
+ECE302,Digital Logic (ECE),3,ECE,E1014,false
+ECE303,Discrete Maths (ECE),3,ECE,E1017,false
+ECE501,Algorithms (ECE),5,ECE,E1017,false
+ECE502,Software Engineering (ECE),5,ECE,E1020,false
+ECE503,Networks (ECE),5,ECE,E1023,false
+ME301,Data Structures (ME),3,ME,E1012,false
+ME302,Digital Logic (ME),3,ME,E1015,false
+ME303,Discrete Maths (ME),3,ME,E1018,false
+ME501,Algorithms (ME),5,ME,E1018,false
+ME502,Software Engineering (ME),5,ME,E1021,false
+ME503,Networks (ME),5,ME,E1024,false
+MA301,Engineering Mathematics III,3,,E1001,false
+HS501,Professional Ethics,5,,,false
+OE551,Python Programming (Open Elective),5,,,true
