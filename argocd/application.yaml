@@ -1,0 +1,36 @@
+# ArgoCD Application: pull-based GitOps for InvigilatorAssist.
+#
+# ArgoCD polls this repository (about every 3 minutes) and applies k8s/ (Kustomize) to AKS. Jenkins never talks to
+# the cluster: it only commits new image tags to k8s/kustomization.yaml. Auto-sync is on, with
+#   prune     - resources deleted from Git are deleted from the cluster
+#   selfHeal  - manual changes in the cluster (kubectl edit/scale) are reverted to what Git says
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: invigilator-assist
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: invigilator
+  source:
+    repoURL: https://github.com/kssampath/InvigilatorAssist.git
+    targetRevision: master
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: invigilator
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10

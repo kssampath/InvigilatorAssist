@@ -1,0 +1,16 @@
+# ArgoCD project: limits the InvigilatorAssist app to this repository and its own namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: invigilator
+  namespace: argocd
+spec:
+  description: InvigilatorAssist exam operations platform
+  sourceRepos:
+    - https://github.com/kssampath/InvigilatorAssist.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: invigilator
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
