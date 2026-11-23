@@ -1,0 +1,15 @@
+# Public entry point: Azure gives this Service a public IP. Open http://<EXTERNAL-IP>/ in a browser.
+apiVersion: v1
+kind: Service
+metadata:
+  name: invigilator-web
+  labels:
+    app.kubernetes.io/name: invigilator-web
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: invigilator-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

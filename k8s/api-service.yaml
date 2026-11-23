@@ -1,0 +1,15 @@
+# Internal only: the browser reaches the API through the web pods' nginx (/api → this Service).
+apiVersion: v1
+kind: Service
+metadata:
+  name: invigilator-api
+  labels:
+    app.kubernetes.io/name: invigilator-api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: invigilator-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

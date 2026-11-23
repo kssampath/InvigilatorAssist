@@ -1,0 +1,20 @@
+# Keep at least one pod of each tier up during node drains and AKS upgrades.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: invigilator-api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: invigilator-api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: invigilator-web
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: invigilator-web
