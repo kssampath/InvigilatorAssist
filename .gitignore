@@ -22,3 +22,21 @@ crash.log
 # OS / editors
 .DS_Store
 .vscode/
+
+# Secrets and local settings (never commit)
+.env
+.env.*
+!.env.example
+!frontend/.env.example
+ci/jenkins/.env
+*.pem
+*.key
+*.pfx
+kubeconfig
+*.kubeconfig
+credentials*.json
+azure-credentials*
+
+# Logs
+*.log
+logs/
