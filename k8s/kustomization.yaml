@@ -24,7 +24,7 @@ resources:
 images:
   - name: invigilator-api
     newName: acrinvigca815854.azurecr.io/invigilator-api
-    newTag: "latest"
+    newTag: "1-2dd5ce5"
   - name: invigilator-web
     newName: acrinvigca815854.azurecr.io/invigilator-web
-    newTag: "latest"
+    newTag: "1-2dd5ce5"
