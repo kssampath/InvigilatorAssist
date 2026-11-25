@@ -1,0 +1,23 @@
+# Jenkins for the InvigilatorAssist pipeline.
+#   cd ci/jenkins && cp .env.example .env   # fill in values (scripts/azure-provision.sh writes the ACR ones)
+#   bash start.sh                               # or: docker compose up -d --build
+# UI: http://localhost:8081  (port 8080 is left free for the app itself)
+services:
+  jenkins:
+    build: .
+    image: invigilator-jenkins:local
+    container_name: invigilator-jenkins
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${JENKINS_PORT:-8081}:8080"
+    # Lets the jenkins user use the host's Docker socket. start.sh sets DOCKER_GID to the socket's group.
+    group_add:
+      - "${DOCKER_GID:-0}"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./casc.yaml:/var/jenkins_casc/casc.yaml:ro
+
+volumes:
+  jenkins_home:
