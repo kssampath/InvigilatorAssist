@@ -1,66 +1,95 @@
-// InvigilatorAssist CI/CD
+// InvigilatorAssist CI/CD: Jenkins → Azure Container Registry → GitOps commit → ArgoCD → AKS
 //
-//   every branch / PR : test backend + frontend, check Terraform formatting and validity
-//   main              : build image in ACR → Terraform dev → deploy web dev → smoke test
-//                       → manual approval → Terraform prod → deploy web prod → smoke test
+//   Every commit on master (SCM polling every 2 minutes; a GitHub webhook also works):
+//     1. Backend: Maven unit tests (+ Testcontainers integration tests when RUN_INTEGRATION_TESTS)
+//     2. Frontend: lint, unit tests, production build
+//     3. Docker: build the API and web images, tagged <build>-<commit>
+//     4. Push both images to ACR
+//     5. GitOps: write the new tag into k8s/kustomization.yaml and push it ([skip ci] commit)
+//     6. ArgoCD notices the commit and syncs AKS (pull-based; Jenkins never touches the cluster)
+//     7. Verify: wait until <APP_URL>/api/health reports the new version (when APP_URL is set)
 //
-// Agent requirements: label "linux", Docker (for Testcontainers), Azure CLI, Terraform >= 1.9,
-// JDK 21 + Maven 3.9 and Node.js 22 configured as Jenkins tools named below.
+// Agent requirements, all provided by ci/jenkins (Jenkins configured as code):
+//   PATH: git, mvn (JDK 21), node 22 + npm, docker CLI with buildx, connected to a Docker daemon
+//   env:  ACR_LOGIN_SERVER   e.g. acrinvig1a2b3c.azurecr.io                  (required)
+//         APP_URL            e.g. http://20.40.60.80, the web LoadBalancer   (optional, enables step 7)
+//   credentials: acr-credentials     username/password for ACR
+//                github-credentials  GitHub username / personal access token (repo scope) for the GitOps push
 //
-// Jenkins credentials (Manage Jenkins → Credentials):
-//   azure-sp            Username/password: service principal appId / client secret
-//   azure-tenant-id     Secret text
-//   azure-subscription  Secret text
-//   tf-backend-account  Secret text: state storage account name printed by infra/bootstrap
-
-def SHA = ''
+// The previous Azure Container Apps + Terraform pipeline is kept as Jenkinsfile.container-apps.
 
 pipeline {
-  agent { label 'linux' }
-
-  tools {
-    jdk 'jdk21'
-    maven 'maven3'
-    nodejs 'node22'
-  }
+  agent any
 
   options {
+    skipDefaultCheckout()
     timestamps()
     disableConcurrentBuilds()
-    buildDiscarder(logRotator(numToKeepStr: '30'))
-    timeout(time: 60, unit: 'MINUTES')
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    timeout(time: 45, unit: 'MINUTES')
+  }
+
+  triggers {
+    pollSCM('H/2 * * * *')
+  }
+
+  parameters {
+    booleanParam(name: 'RUN_INTEGRATION_TESTS', defaultValue: false,
+                 description: 'Also run the Testcontainers integration tests (needs Docker networking from the agent)')
+    booleanParam(name: 'UPDATE_GITOPS', defaultValue: true,
+                 description: 'Commit the new image tag to k8s/kustomization.yaml so ArgoCD deploys it')
   }
 
   environment {
-    SHARED_RG = 'rg-invig-shared'
-    TF_IN_AUTOMATION = 'true'
-    TF_INPUT = '0'
+    GITOPS_BRANCH   = 'master'
+    API_IMAGE       = "${env.ACR_LOGIN_SERVER}/invigilator-api"
+    WEB_IMAGE       = "${env.ACR_LOGIN_SERVER}/invigilator-web"
+    DOCKER_BUILDKIT = '1'
+    DOCKER_PLATFORM = 'linux/amd64'   // AKS nodes are amd64, even when Jenkins runs on an Apple Silicon Mac
   }
 
   stages {
     stage('Checkout') {
       steps {
         checkout scm
-        script { SHA = sh(script: 'git rev-parse --short=12 HEAD', returnStdout: true).trim() }
+        script {
+          env.GIT_SHORT = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
+          env.IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_SHORT}"
+          String subject = sh(script: 'git log -1 --pretty=%s', returnStdout: true).trim()
+          // Jenkins' own GitOps commit: nothing to build, and building it would loop.
+          env.SKIP_CI = subject.contains('[skip ci]') ? 'true' : 'false'
+          if (env.SKIP_CI == 'true') {
+            currentBuild.description = "GitOps commit ${env.GIT_SHORT}: skipped"
+            currentBuild.result = 'NOT_BUILT'
+          } else {
+            if (!env.ACR_LOGIN_SERVER?.trim()) {
+              error 'ACR_LOGIN_SERVER is not set. Add it to ci/jenkins/.env (or Manage Jenkins → System → Environment variables).'
+            }
+            String shortSubject = subject.length() > 60 ? subject.substring(0, 60) : subject
+            currentBuild.description = "${env.IMAGE_TAG}: ${shortSubject}"
+            echo "Building ${env.GIT_SHORT} as image tag ${env.IMAGE_TAG}"
+          }
+        }
       }
     }
 
-    stage('Test') {
+    stage('Build & test') {
+      when { environment name: 'SKIP_CI', value: 'false' }
       parallel {
-        stage('Backend') {
+        stage('Backend (Maven)') {
           steps {
             dir('backend') {
-              // verify = unit tests + Testcontainers integration tests against real PostgreSQL
-              sh 'mvn -B -ntp verify'
+              sh "mvn -B -ntp ${params.RUN_INTEGRATION_TESTS ? 'verify' : 'test'}"
             }
           }
           post {
             always {
-              junit allowEmptyResults: true, testResults: 'backend/target/surefire-reports/*.xml, backend/target/failsafe-reports/*.xml'
+              junit allowEmptyResults: true,
+                    testResults: 'backend/target/surefire-reports/*.xml, backend/target/failsafe-reports/*.xml'
             }
           }
         }
-        stage('Frontend') {
+        stage('Frontend (npm)') {
           steps {
             dir('frontend') {
               sh 'npm ci --no-audit --no-fund'
@@ -73,126 +102,81 @@ pipeline {
             always { junit allowEmptyResults: true, testResults: 'frontend/test-results/*.xml' }
           }
         }
-        stage('Terraform checks') {
-          steps {
-            dir('infra') {
-              sh 'terraform fmt -check -recursive'
-              sh '''
-                for env in envs/dev envs/prod; do
-                  terraform -chdir=$env init -backend=false -input=false >/dev/null
-                  terraform -chdir=$env validate
-                done
-              '''
-              // Optional IaC security scan when checkov is installed on the agent.
-              sh 'if command -v checkov >/dev/null; then checkov -d . --quiet --compact --soft-fail; fi'
-            }
-          }
+      }
+    }
+
+    stage('Docker build') {
+      when { environment name: 'SKIP_CI', value: 'false' }
+      steps {
+        sh '''
+          docker build --pull --platform "$DOCKER_PLATFORM" --build-arg APP_VERSION="$IMAGE_TAG" \
+            -t "$API_IMAGE:$IMAGE_TAG" -t "$API_IMAGE:latest" backend
+          docker build --pull --platform "$DOCKER_PLATFORM" --build-arg APP_VERSION="$IMAGE_TAG" \
+            -t "$WEB_IMAGE:$IMAGE_TAG" -t "$WEB_IMAGE:latest" frontend
+          docker image ls --format 'table {{.Repository}}\t{{.Tag}}\t{{.Size}}' | grep -E "invigilator-(api|web)" | grep "$IMAGE_TAG"
+        '''
+      }
+    }
+
+    stage('Push to ACR') {
+      when { environment name: 'SKIP_CI', value: 'false' }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'acr-credentials',
+                                          usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS')]) {
+          sh '''
+            echo "$ACR_PASS" | docker login "$ACR_LOGIN_SERVER" --username "$ACR_USER" --password-stdin
+            for image in "$API_IMAGE" "$WEB_IMAGE"; do
+              docker push "$image:$IMAGE_TAG"
+              docker push "$image:latest"
+            done
+          '''
+        }
+      }
+      post {
+        always { sh 'docker logout "$ACR_LOGIN_SERVER" >/dev/null 2>&1 || true' }
+      }
+    }
+
+    stage('Update GitOps manifests') {
+      when {
+        allOf {
+          environment name: 'SKIP_CI', value: 'false'
+          expression { params.UPDATE_GITOPS }
+        }
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'github-credentials',
+                                          usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+          sh 'sh ci/scripts/gitops-bump.sh'
         }
       }
     }
 
-    stage('Build image') {
-      when { branch 'main' }
-      steps {
-        script {
-          withAzure {
-            env.ACR_NAME = sh(script: "az acr list -g ${env.SHARED_RG} --query '[0].name' -o tsv", returnStdout: true).trim()
-            // Built inside ACR: no Docker daemon or registry password needed on the agent.
-            sh "az acr build --registry \"\$ACR_NAME\" --image invigilator-api:${SHA} --image invigilator-api:main backend"
-          }
+    stage('Verify deployment') {
+      when {
+        allOf {
+          environment name: 'SKIP_CI', value: 'false'
+          expression { return params.UPDATE_GITOPS && (env.APP_URL ?: '').trim().length() > 0 }
         }
       }
-    }
-
-    stage('Deploy dev') {
-      when { branch 'main' }
       steps {
-        script { deployEnvironment('dev', SHA) }
-      }
-    }
-
-    stage('Approve prod') {
-      when { branch 'main' }
-      steps {
-        timeout(time: 2, unit: 'DAYS') {
-          input message: "Deploy ${SHA} to production?", ok: 'Deploy'
-        }
-      }
-    }
-
-    stage('Deploy prod') {
-      when { branch 'main' }
-      steps {
-        script { deployEnvironment('prod', SHA) }
+        // ArgoCD polls Git every ~3 minutes, then the rolling update needs a minute or two.
+        sh 'sh ci/scripts/wait-for-version.sh "$APP_URL" "$IMAGE_TAG" 600'
       }
     }
   }
 
   post {
+    success {
+      script {
+        if (env.SKIP_CI == 'false') {
+          echo "Pushed ${env.API_IMAGE}:${env.IMAGE_TAG} and ${env.WEB_IMAGE}:${env.IMAGE_TAG}"
+        }
+      }
+    }
     always {
-      cleanWs(deleteDirs: true, notFailBuild: true, patterns: [[pattern: '**/backend.hcl', type: 'INCLUDE'], [pattern: '**/*.tfplan', type: 'INCLUDE']])
+      // Drop dangling layers from earlier builds so the agent's disk does not fill up.
+      sh 'docker image prune -f >/dev/null 2>&1 || true'
     }
-  }
-}
-
-// ---- helpers ------------------------------------------------------------------------------------------
-
-/** Runs the body logged in to Azure, with ARM_* variables set for Terraform. */
-def withAzure(Closure body) {
-  withCredentials([
-    usernamePassword(credentialsId: 'azure-sp', usernameVariable: 'ARM_CLIENT_ID', passwordVariable: 'ARM_CLIENT_SECRET'),
-    string(credentialsId: 'azure-tenant-id', variable: 'ARM_TENANT_ID'),
-    string(credentialsId: 'azure-subscription', variable: 'ARM_SUBSCRIPTION_ID'),
-    string(credentialsId: 'tf-backend-account', variable: 'TF_BACKEND_ACCOUNT'),
-  ]) {
-    sh '''
-      az login --service-principal -u "$ARM_CLIENT_ID" -p "$ARM_CLIENT_SECRET" --tenant "$ARM_TENANT_ID" --output none
-      az account set --subscription "$ARM_SUBSCRIPTION_ID"
-    '''
-    try {
-      body()
-    } finally {
-      sh 'az logout || true'
-    }
-  }
-}
-
-/** Terraform apply for one environment, then publish the web app pointed at that environment's API. */
-def deployEnvironment(String envName, String sha) {
-  withAzure {
-    dir("infra/envs/${envName}") {
-      writeFile file: 'backend.hcl', text: """
-resource_group_name  = "${env.SHARED_RG}"
-storage_account_name = "${env.TF_BACKEND_ACCOUNT}"
-container_name       = "tfstate"
-use_azuread_auth     = true
-"""
-      sh 'terraform init -input=false -backend-config=backend.hcl'
-      sh "terraform plan -input=false -var acr_name=\"\$ACR_NAME\" -var image_tag=${sha} -out=${envName}.tfplan"
-      sh "terraform apply -input=false ${envName}.tfplan"
-      env.API_URL = sh(script: 'terraform output -raw api_url', returnStdout: true).trim()
-      env.WEB_URL = sh(script: 'terraform output -raw web_url', returnStdout: true).trim()
-    }
-
-    dir('frontend') {
-      sh 'VITE_API_BASE_URL="$API_URL" npm run build'
-      // The deployment token is read and used inside one shell step so it never lands in the build environment.
-      sh """
-        set +x
-        SWA_TOKEN=\$(terraform -chdir=../infra/envs/${envName} output -raw web_deployment_token)
-        npx --yes @azure/static-web-apps-cli@2 deploy ./dist --deployment-token "\$SWA_TOKEN" --env production
-      """
-    }
-
-    // Smoke test: the API must report ready (DB reachable, Flyway done) and the web app must load.
-    sh '''
-      for i in $(seq 1 30); do
-        if curl -fsS "$API_URL/actuator/health/readiness" >/dev/null; then echo "API ready"; break; fi
-        if [ "$i" = 30 ]; then echo "API did not become ready"; exit 1; fi
-        sleep 10
-      done
-      curl -fsS -o /dev/null "$WEB_URL"
-    '''
-    echo "${envName}: web ${env.WEB_URL} · api ${env.API_URL}"
   }
 }

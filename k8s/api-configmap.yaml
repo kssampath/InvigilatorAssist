@@ -1,0 +1,16 @@
+# Non-secret settings for the API. Secrets (DB password, JWT key, demo admin password) come from Secrets
+# created out of band by scripts/azure-provision.sh.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: invigilator-api-config
+  labels:
+    app.kubernetes.io/name: invigilator-api
+data:
+  SPRING_PROFILES_ACTIVE: demo          # seeds the DEMO institution + admin@demo.edu on first start
+  DB_URL: jdbc:postgresql://postgres:5432/invigilator
+  DB_USERNAME: invigilator
+  DB_POOL_SIZE: "5"
+  APP_TIME_ZONE: Asia/Kolkata
+  CORS_ALLOWED_ORIGINS: http://localhost:5173   # the browser reaches the API through the web pod (same origin)
+  JAVA_OPTS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError -XX:TieredStopAtLevel=1

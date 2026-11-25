@@ -1,0 +1,30 @@
+# Entry point for both `kubectl apply -k k8s/` and ArgoCD (which detects Kustomize automatically).
+#
+# The `images:` block is the GitOps contract: Jenkins rewrites newName/newTag after every successful push to ACR
+# (ci/scripts/gitops-bump.sh) and commits it; ArgoCD sees the commit and rolls the new images out.
+# scripts/azure-provision.sh replaces the placeholder registry with your ACR on first setup.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: invigilator
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: invigilatorassist
+
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - api-configmap.yaml
+  - api-deployment.yaml
+  - api-service.yaml
+  - web-deployment.yaml
+  - web-service.yaml
+  - pdb.yaml
+
+images:
+  - name: invigilator-api
+    newName: REPLACE_ME.azurecr.io/invigilator-api
+    newTag: "latest"
+  - name: invigilator-web
+    newName: REPLACE_ME.azurecr.io/invigilator-web
+    newTag: "latest"

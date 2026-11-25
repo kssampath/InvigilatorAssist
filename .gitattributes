@@ -1,0 +1,9 @@
+# Keep Linux line endings for files that run in containers, CI or Kubernetes, even when committed from Windows.
+* text=auto
+*.sh text eol=lf
+Jenkinsfile* text eol=lf
+Dockerfile text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.template text eol=lf
+*.txt text eol=lf
