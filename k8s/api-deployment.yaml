@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invigilator-api
+  labels:
+    app.kubernetes.io/name: invigilator-api
+    app.kubernetes.io/component: api
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0          # never drop below 2 ready pods during a rollout
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: invigilator-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: invigilator-api
+        app.kubernetes.io/component: api
+    spec:
+      # Used only when AKS could not be attached to ACR (no role-assignment rights, e.g. KodeKloud playground).
+      # A missing Secret is ignored by the kubelet.
+      imagePullSecrets:
+        - name: acr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: invigilator-api
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: api
+          image: invigilator-api          # registry and tag set in kustomization.yaml by Jenkins
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: invigilator-api-config
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: invigilator-db
+                  key: password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: invigilator-app
+                  key: jwt-secret
+            - name: DEV_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: invigilator-app
+                  key: admin-password
+          startupProbe:                    # small nodes: allow up to 3 minutes for the first start
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
