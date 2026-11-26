@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars (git-ignored) for local runs. The pipeline passes these as TF_VAR_* instead.
+resource_group_name = "kml_rg_main-xxxxxxxx" # the playground's resource group
+# aks_node_vm_size     = "Standard_D2s_v3"
+# jenkins_vm_size      = "Standard_B2s"
+# jenkins_allowed_cidr = "203.0.113.10/32"   # your public IP, to keep the Jenkins UI private

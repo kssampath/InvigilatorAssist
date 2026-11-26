@@ -40,3 +40,9 @@ azure-credentials*
 # Logs
 *.log
 logs/
+
+# Terraform (infra/aks-gitops)
+*.tfplan
+tfplan
+plan.txt
+infra/aks-gitops/terraform.tfvars

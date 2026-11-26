@@ -76,23 +76,8 @@ else
 fi
 
 # ---- Namespace and Secrets (kept out of Git) ---------------------------------------------------------------
-log "Preparing namespace $NAMESPACE and its Secrets"
-kubectl apply -f "$ROOT/k8s/namespace.yaml"
-
-kubectl -n "$NAMESPACE" create secret docker-registry acr-pull \
-  --docker-server="$ACR_LOGIN_SERVER" --docker-username="$ACR_USERNAME" --docker-password="$ACR_PASSWORD" \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-if ! kubectl -n "$NAMESPACE" get secret invigilator-db >/dev/null 2>&1; then
-  kubectl -n "$NAMESPACE" create secret generic invigilator-db --from-literal=password="$(openssl rand -hex 16)"
-fi
-if ! kubectl -n "$NAMESPACE" get secret invigilator-app >/dev/null 2>&1; then
-  ADMIN_PASSWORD=${ADMIN_PASSWORD:-$(openssl rand -hex 6)}
-  kubectl -n "$NAMESPACE" create secret generic invigilator-app \
-    --from-literal=jwt-secret="$(openssl rand -hex 32)" \
-    --from-literal=admin-password="$ADMIN_PASSWORD"
-fi
-kubectl -n "$NAMESPACE" get secrets
+ACR_LOGIN_SERVER="$ACR_LOGIN_SERVER" ACR_USERNAME="$ACR_USERNAME" ACR_PASSWORD="$ACR_PASSWORD" \
+  bash "$ROOT/scripts/bootstrap-cluster.sh"
 
 # ---- Jenkins settings ------------------------------------------------------------------------------------------
 ENV_FILE="$ROOT/ci/jenkins/.env"

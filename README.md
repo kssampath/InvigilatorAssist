@@ -137,7 +137,8 @@ flowchart LR
 | CI/CD | `Jenkinsfile`, `ci/jenkins/` (Jenkins configured as code), `ci/scripts/` | Test → build → push → GitOps commit → verify |
 | Kubernetes | `k8s/` (Kustomize) | Namespace, PostgreSQL StatefulSet + disk, API Deployment ×2 (ClusterIP), web Deployment ×2 (LoadBalancer), ConfigMap, PodDisruptionBudgets |
 | GitOps | `argocd/project.yaml`, `argocd/application.yaml` | Auto-sync with prune and self-heal, retries, `CreateNamespace=true` |
-| Azure setup | `scripts/azure-provision.sh`, `scripts/jenkins-vm.sh`, `scripts/install-argocd.sh`, `scripts/verify.sh`, `scripts/azure-teardown.sh` | Fit the KodeKloud Azure playground limits (existing resource group, 1 node pool, ≤ 2 small nodes, no Container Insights) |
+| Azure setup (Azure CLI) | `scripts/azure-provision.sh`, `scripts/jenkins-vm.sh`, `scripts/install-argocd.sh`, `scripts/verify.sh`, `scripts/azure-teardown.sh` | Fit the KodeKloud Azure playground limits (existing resource group, 1 node pool, ≤ 2 small nodes, no Container Insights, Standard disks ≤ 128 GB) |
+| Infrastructure as code (alternative) | `infra/aks-gitops/` (Terraform) | The same ACR, AKS and Jenkins VM as the scripts, for teams that manage Azure with Terraform. Not needed for the CLI path |
 
 ### Secrets: none in Git
 
@@ -203,6 +204,10 @@ Commit and push that change when the script asks:
 git add k8s/kustomization.yaml && git commit -m "k8s: use this environment's ACR" && git push
 ```
 
+**Alternative: Terraform.** `infra/aks-gitops/` creates the same ACR, AKS and Jenkins VM with Terraform, keeping
+its state in Azure Storage. It is optional, and the scripts above do not need it. See
+`infra/aks-gitops/README.md` for how to run it.
+
 ### Step 3: Build and push the images by hand (first time)
 
 ```bash
@@ -229,8 +234,8 @@ bash scripts/jenkins-vm.sh            # recommended: Ubuntu VM with Docker + Jen
 cd ci/jenkins && bash start.sh        # http://localhost:8081
 ```
 
-`jenkins-vm.sh` tries `Standard_D2s_v3`, `Standard_B2s` and `Standard_B2ms` until one passes the playground
-policy. It adds 4 GB of swap for the Maven and npm builds, copies `.env` over SSH so the secrets never go into
+`jenkins-vm.sh` tries `Standard_D2s_v3`, then `Standard_B2s`, until one passes the playground policy. It uses a
+64 GB Standard HDD disk, because the playground rejects Premium disks and disks over 128 GB. It adds 4 GB of swap for the Maven and npm builds, copies `.env` over SSH so the secrets never go into
 VM metadata, and opens port 8081. Set `ALLOW_FROM=<your-ip>` to limit who can reach Jenkins.
 
 Jenkins starts with the plugins, the two credentials and the **InvigilatorAssist CI/CD** pipeline job already
@@ -291,6 +296,7 @@ bash scripts/verify.sh       # timestamped: nodes, pods, services, image tags, A
 | Symptom | Fix |
 | --- | --- |
 | `RequestDisallowedByPolicy` creating AKS | Use an allowed size: `NODE_SIZE=Standard_B2s bash scripts/azure-provision.sh` |
+| `RequestDisallowedByPolicy` for the Jenkins VM disk | The playground allows only non-Premium disks up to 128 GB. `jenkins-vm.sh` already asks for `Standard_LRS`; if an earlier attempt left a failed VM, run `az vm delete -g <rg> -n vm-jenkins --yes` first |
 | Pods `ImagePullBackOff` | `kubectl -n invigilator describe pod <pod>`. Check that the `newName` registry in `k8s/kustomization.yaml` is your ACR and that the tag exists (`az acr repository show-tags -n <acr> --repository invigilator-api`). Re-run `azure-provision.sh` to refresh `acr-pull` |
 | `exec format error` in pods | An image was built for arm64. Rebuild it with `--platform linux/amd64` (the Jenkinsfile already does this) |
 | API pods `Pending` | The nodes are full: `kubectl describe pod`. Make sure `ARGOCD_MINIMAL=true` (default), or use `Standard_D2s_v3` nodes |

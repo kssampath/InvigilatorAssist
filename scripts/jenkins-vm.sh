@@ -6,7 +6,7 @@
 #
 # Before running, ci/jenkins/.env must hold ACR_* (written by azure-provision.sh), JENKINS_ADMIN_PASSWORD,
 # GITHUB_USER and GITHUB_TOKEN. The script creates the VM (Docker installed by cloud-init, 4 GB swap for the
-# Maven/npm builds), copies .env over SSH (secrets never go into VM metadata), starts Jenkins on port 8081 and
+# Maven/npm builds, Standard HDD disk because the KodeKloud policy rejects Premium disks), copies .env over SSH (secrets never go into VM metadata), starts Jenkins on port 8081 and
 # prints its URL.
 #
 # Optional: VM_NAME, VM_SIZE (space-separated list tried in order), ALLOW_FROM (source IP/CIDR allowed to reach
@@ -29,7 +29,7 @@ done
 RESOURCE_GROUP=${RESOURCE_GROUP:-$(az group list --query '[0].name' -o tsv)}
 LOCATION=${LOCATION:-$(az group show -n "$RESOURCE_GROUP" --query location -o tsv)}
 VM_NAME=${VM_NAME:-vm-jenkins}
-VM_SIZES=${VM_SIZE:-"Standard_D2s_v3 Standard_B2s Standard_B2ms"}
+VM_SIZES=${VM_SIZE:-"Standard_D2s_v3 Standard_B2s"}
 ALLOW_FROM=${ALLOW_FROM:-Internet}
 GIT_BRANCH=${GIT_BRANCH:-master}
 REPO_URL=${GIT_REPO_URL:-https://github.com/kssampath/InvigilatorAssist.git}
@@ -59,7 +59,7 @@ else
     log "Creating VM $VM_NAME ($size, Ubuntu 24.04) in $RESOURCE_GROUP"
     if az vm create -g "$RESOURCE_GROUP" -n "$VM_NAME" -l "$LOCATION" \
          --image Ubuntu2404 --size "$size" --admin-username "$ADMIN_USER" \
-         --generate-ssh-keys --public-ip-sku Standard --os-disk-size-gb 64 \
+         --generate-ssh-keys --public-ip-sku Standard --os-disk-size-gb 64 --storage-sku Standard_LRS \
          --custom-data "$CLOUD_INIT" -o none; then
       created=true
       break
