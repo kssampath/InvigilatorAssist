@@ -24,7 +24,7 @@ resources:
 images:
   - name: invigilator-api
     newName: acrinviga1e08076.azurecr.io/invigilator-api
-    newTag: "1-3ad1b6f"
+    newTag: "3-599170a"
   - name: invigilator-web
     newName: acrinviga1e08076.azurecr.io/invigilator-web
-    newTag: "1-3ad1b6f"
+    newTag: "3-599170a"
